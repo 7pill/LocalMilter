@@ -9,6 +9,7 @@ import Milter
 from Milter.utils import parse_addr
 from io import BytesIO
 import time
+import base64
 import email
 import re
 import os
@@ -69,7 +70,7 @@ class myMilter(Milter.Base):
 	def header(self, name, hval):
 		if name == 'From':
 			self.fromHeader = hval
-		elif name == "Content-Type":
+		elif name == "Content-Type" or name == "Content-Transfer-Encoding":
 			self.fp.write(b'%s: %s\n' % (name.encode(),hval.encode()))	# add header to buffer
 		return Milter.CONTINUE
 
@@ -95,7 +96,8 @@ class myMilter(Milter.Base):
 			self.fp.seek(0)
 			msg = email.message_from_binary_file(self.fp) 		# msg holds the entire message body
 			msg = embed_disclaimer(msg, disclaimer_msg_txt, disclaimer_msg_html)
-			self.replacebody(str(msg))
+
+			self.replacebody(msg)
 
 		self.log("eom reached", self.fromHeader) 
 
@@ -141,19 +143,59 @@ def background():
 		logmsg(*t)
 
 
+def reformat_base64_message(msg):
+	chunk = 76
+	msg = ''.join(msg.split('\n'))
+	msg = '\n'.join([msg[i:i+chunk] for i in range(0,len(msg),chunk)])
+	return msg
+
+
 def embed_disclaimer(email_object, disclaimer_msg_txt, disclaimer_msg_html):
 	for part in email_object.walk():
-		if not part.is_multipart() and part.get_content_disposition() == None:
+		if not part.is_multipart() and part.get_content_disposition() == None:		# Match single part message and message body (not attachment)
 			content_type = part.get_content_type()
+			transfer_encode = part.get("Content-Transfer-Encoding")
+
 			if content_type == "text/plain":
-				disclaimer_payload = disclaimer_msg_txt + part.get_payload()
+				if transfer_encode == "base64":
+					# Set padding for Disclaimer to prevent base64 structure break
+					padding = 3 - (len(disclaimer_msg_txt) % 3)
+					disclaimer_msg_txt += ' ' * padding
+					disclaimer_msg_txt = (base64.b64encode(disclaimer_msg_txt.encode('utf-8'))).decode('utf-8')
+					# Merge Disclaimer with main message
+					disclaimer_payload = disclaimer_msg_txt + part.get_payload()
+					# Reformat message in correct b64 message type
+					disclaimer_payload = reformat_base64_message(disclaimer_payload)
+				else:
+					disclaimer_payload = disclaimer_msg_txt + part.get_payload()
 				part.set_payload(disclaimer_payload)
+
 			elif content_type == "text/html":
-				disclaimer_payload = disclaimer_msg_html + part.get_payload()
+				if transfer_encode == "base64":
+					# Set padding for Disclaimer to prevent base64 structure break
+					padding = 3 - (len(disclaimer_msg_html) % 3)
+					disclaimer_msg_html += ' ' * padding
+					disclaimer_msg_html = (base64.b64encode(disclaimer_msg_html.encode('utf-8'))).decode('utf-8')
+					# Merge Disclaimer with main message
+					disclaimer_payload = disclaimer_msg_html + part.get_payload()
+					# Reformat message in correct b64 message type
+					disclaimer_payload = reformat_base64_message(disclaimer_payload)
+				else:
+					disclaimer_payload = disclaimer_msg_html + part.get_payload()
 				part.set_payload(disclaimer_payload)
 			else:
 				print("[-] Unhandled mime type found: %s"%(content_type))
-	return email_object
+
+	if email_object.is_multipart():
+		top_boundary = email_object.get_boundary()
+		msg = str(email_object)
+		start_index = msg.find(top_boundary)
+		msg = msg[start_index:]
+	else:
+		email_object._headers.clear()
+		msg = str(email_object)
+
+	return msg
 
 
 
