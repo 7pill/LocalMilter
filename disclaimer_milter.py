@@ -164,7 +164,6 @@ def embed_disclaimer(email_object, disclaimer_msg_txt, disclaimer_msg_html):
 					disclaimer_msg_txt = (base64.b64encode(disclaimer_msg_txt.encode('utf-8'))).decode('utf-8')
 					# Merge Disclaimer with main message
 					disclaimer_payload = disclaimer_msg_txt + part.get_payload()
-					# Reformat message in correct b64 message type
 					disclaimer_payload = reformat_base64_message(disclaimer_payload)
 				else:
 					disclaimer_payload = disclaimer_msg_txt + part.get_payload()
@@ -178,7 +177,6 @@ def embed_disclaimer(email_object, disclaimer_msg_txt, disclaimer_msg_html):
 					disclaimer_msg_html = (base64.b64encode(disclaimer_msg_html.encode('utf-8'))).decode('utf-8')
 					# Merge Disclaimer with main message
 					disclaimer_payload = disclaimer_msg_html + part.get_payload()
-					# Reformat message in correct b64 message type
 					disclaimer_payload = reformat_base64_message(disclaimer_payload)
 				else:
 					disclaimer_payload = disclaimer_msg_html + part.get_payload()
