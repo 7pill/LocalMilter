@@ -143,11 +143,18 @@ def background():
 		logmsg(*t)
 
 
-def reformat_base64_message(msg):
-	chunk = 76
-	msg = ''.join(msg.split('\n'))
-	msg = '\n'.join([msg[i:i+chunk] for i in range(0,len(msg),chunk)])
-	return msg
+def reformat_base64_message(email_object, disclaimer_msg, chunk=76):
+	# Set padding for Disclaimer to prevent base64 structure break
+	padding = 3 - (len(disclaimer_msg) % 3)
+	disclaimer_msg += ' ' * padding
+	disclaimer_msg = (base64.b64encode(disclaimer_msg.encode('utf-8'))).decode('utf-8')
+	# Merge Disclaimer with main message
+	new_email_content = disclaimer_msg + email_object.get_payload()
+	# new_email_content = reformat_base64_message(new_email_content)
+
+	new_email_content = ''.join(new_email_content.split('\n'))
+	new_email_content = '\n'.join([new_email_content[i:i+chunk] for i in range(0,len(new_email_content),chunk)])
+	return new_email_content
 
 
 def embed_disclaimer(email_object, disclaimer_msg_txt, disclaimer_msg_html):
@@ -158,26 +165,14 @@ def embed_disclaimer(email_object, disclaimer_msg_txt, disclaimer_msg_html):
 
 			if content_type == "text/plain":
 				if transfer_encode == "base64":
-					# Set padding for Disclaimer to prevent base64 structure break
-					padding = 3 - (len(disclaimer_msg_txt) % 3)
-					disclaimer_msg_txt += ' ' * padding
-					disclaimer_msg_txt = (base64.b64encode(disclaimer_msg_txt.encode('utf-8'))).decode('utf-8')
-					# Merge Disclaimer with main message
-					disclaimer_payload = disclaimer_msg_txt + part.get_payload()
-					disclaimer_payload = reformat_base64_message(disclaimer_payload)
+					disclaimer_payload = reformat_base64_message(part, disclaimer_msg_txt)
 				else:
 					disclaimer_payload = disclaimer_msg_txt + part.get_payload()
 				part.set_payload(disclaimer_payload)
 
 			elif content_type == "text/html":
 				if transfer_encode == "base64":
-					# Set padding for Disclaimer to prevent base64 structure break
-					padding = 3 - (len(disclaimer_msg_html) % 3)
-					disclaimer_msg_html += ' ' * padding
-					disclaimer_msg_html = (base64.b64encode(disclaimer_msg_html.encode('utf-8'))).decode('utf-8')
-					# Merge Disclaimer with main message
-					disclaimer_payload = disclaimer_msg_html + part.get_payload()
-					disclaimer_payload = reformat_base64_message(disclaimer_payload)
+					disclaimer_payload = reformat_base64_message(part, disclaimer_msg_html)
 				else:
 					disclaimer_payload = disclaimer_msg_html + part.get_payload()
 				part.set_payload(disclaimer_payload)
