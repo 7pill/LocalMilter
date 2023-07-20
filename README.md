@@ -27,7 +27,8 @@ pip3 install pymilter
 ```
 chmod +x disclaimer_milter.py
 cp ./conf/local_milter.conf /etc/supervisor/conf.d
-systemctl enable --now supervisor
+systemctl restart supervisor
+systemctl enable supervisor
 ```
 
 In the config file, home directory of service was set to */opt/zimbra/LocalMilter*.
