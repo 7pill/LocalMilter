@@ -62,3 +62,8 @@ Disclaimer message can be update on *disclaimer_message.txt* and *disclaimer_mes
 
 Add exception domain to skip the disclaimer message on *exception_domains.txt* file
 (zmhostname of zimbra domain server should included).
+
+-----------------
+### Resource for more
+[Zimbra SkillZ: Add a Custom Python 3 Milter to Zimbra! Part 3 of the Zimbra Open Core Series](https://blog.zimbra.com/2021/03/zimbra-skillz-python-3-milter-for-zimbra/).<br>
+[PyMilter: Python Package](https://pythonhosted.org/pymilter/).
