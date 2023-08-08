@@ -11,7 +11,6 @@ from io import BytesIO
 import time
 import base64
 import email
-import re
 import os
 import sys
 from multiprocessing import Process as Thread, Queue
