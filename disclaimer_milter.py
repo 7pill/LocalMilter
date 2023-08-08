@@ -40,8 +40,7 @@ class myMilter(Milter.Base):
 	def __init__(self):
 		self.id = Milter.uniqueID()	# Integer incremented with each call.
 		self.fromExternal = True
-
-		self.fromHeader = ''
+		self.logMessage = ()
 
 
 	# each connection runs in its own thread and has its own myMilter
@@ -50,28 +49,30 @@ class myMilter(Milter.Base):
 
 	
 	def envfrom(self, mailfrom, *str):
-		self.log("mail from:", mailfrom, *str)
+		self.logMessage += ("Return Path:" + mailfrom, *str)
 		# NOTE: self.fp is only en *internal* copy of message data. You
 		# must use addheader, chgheader, replacebody to change the message
 		# on the MTA
-
-		# Verify if email send from External
-		sender_address = mailfrom[1:-1]
-		self.fromExternal = not any([re.fullmatch(pattern, sender_address) for pattern in disclaimer_exception])
-		# self.log("sender domain: ", sender_domain)
-		if self.fromExternal:
-			self.fp = BytesIO()
-			return Milter.CONTINUE
-		else:
-			return Milter.ACCEPT		
+		self.fp = BytesIO()
+		return Milter.CONTINUE	
 
 	
 	@Milter.noreply
 	def header(self, name, hval):
+		print('%s: %s\n' % (name, hval))
 		if name == 'From':
-			self.fromHeader = hval
+			fromHeader = hval
+			self.logMessage += ("From Header: " + fromHeader,)
+
+			# Verify if email send from External
+			self.fromExternal = not any([fromHeader.endswith(pattern+">") for pattern in disclaimer_exception])
+
+		elif name == "Subject":
+			self.logMessage += ("Subject: " + hval,)
+
 		elif name == "Content-Type" or name == "Content-Transfer-Encoding":
 			self.fp.write(b'%s: %s\n' % (name.encode(),hval.encode()))	# add header to buffer
+
 		return Milter.CONTINUE
 
 	
@@ -95,11 +96,14 @@ class myMilter(Milter.Base):
 			# Add Disclaimer message
 			self.fp.seek(0)
 			msg = email.message_from_binary_file(self.fp) 		# msg holds the entire message body
-			msg = embed_disclaimer(msg, disclaimer_msg_txt, disclaimer_msg_html)
+			msg = embed_disclaimer(self, msg, disclaimer_msg_txt, disclaimer_msg_html)
 
 			self.replacebody(msg)
 
-		self.log("eom reached", self.fromHeader) 
+		else:
+			self.logMessage += ("ACCEPT: Internal email",)
+
+		self.log(*self.logMessage,)
 
 		return Milter.ACCEPT 
 
@@ -123,7 +127,8 @@ class myMilter(Milter.Base):
 		else:
 			logmsg(*t)
 			pass
-	
+
+
 
 
 
@@ -158,28 +163,33 @@ def embed_disclaimer_b64(email_object, disclaimer_msg, chunk=76):
 	return new_email_content
 
 
-def embed_disclaimer(email_object, disclaimer_msg_txt, disclaimer_msg_html):
+def embed_disclaimer(milter_object, email_object, disclaimer_msg_txt, disclaimer_msg_html):
 	for part in email_object.walk():
 		if not part.is_multipart() and part.get_content_disposition() == None:		# Match single part message and message body (not attachment)
 			content_type = part.get_content_type()
 			transfer_encode = part.get("Content-Transfer-Encoding")
+			disclaimer_msg = ""
 
+			# Check Content Type of email and select the right disclaimer type
 			if content_type == "text/plain":
-				if transfer_encode == "base64":
-					disclaimer_payload = embed_disclaimer_b64(part, disclaimer_msg_txt)
-				else:
-					disclaimer_payload = disclaimer_msg_txt + part.get_payload()
-				part.set_payload(disclaimer_payload)
-
+				milter_object.logMessage += ("Disclaimer Message Type: Plain Text",)
+				disclaimer_msg = disclaimer_msg_txt
 			elif content_type == "text/html":
-				if transfer_encode == "base64":
-					disclaimer_payload = embed_disclaimer_b64(part, disclaimer_msg_html)
-				else:
-					disclaimer_payload = disclaimer_msg_html + part.get_payload()
-				part.set_payload(disclaimer_payload)
+				milter_object.logMessage += ("Disclaimer Message Type: HTML",)
+				disclaimer_msg = disclaimer_msg_html
 			else:
-				print("[-] Unhandled mime type found: %s"%(content_type))
+				milter_object.logMessage += ("[-] Unhandled mime type found: " + content_type,)
 
+			# Check Encode method on email
+			if disclaimer_msg:
+				if transfer_encode == "base64":
+					milter_object.logMessage += ("[-] Unhandled mime type found: " + content_type,)
+					disclaimer_payload = embed_disclaimer_b64(part, disclaimer_msg)
+				else:
+					disclaimer_payload = disclaimer_msg + part.get_payload()
+				part.set_payload(disclaimer_payload)
+
+	# Purge the email header and return message body
 	if email_object.is_multipart():
 		top_boundary = email_object.get_boundary()
 		msg = str(email_object)
@@ -190,6 +200,7 @@ def embed_disclaimer(email_object, disclaimer_msg_txt, disclaimer_msg_html):
 		msg = str(email_object)
 
 	return msg
+
 
 
 
