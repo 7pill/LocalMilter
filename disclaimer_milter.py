@@ -64,8 +64,8 @@ class myMilter(Milter.Base):
 			fromHeader = hval
 			self.logMessage += ("From: " + fromHeader,)
 
-			# Verify if email send from External (ACCEPT Mail if from Internal)
-			self.fromExternal = not any([fromHeader.endswith(pattern+">") for pattern in disclaimer_exception])
+			# Verify if email send from External
+			self.fromExternal = not any([fromHeader.endswith(pattern+">") or fromHeader.endswith(pattern) for pattern in disclaimer_exception])
 
 		elif name == "Subject":
 			self.logMessage += ("Subject: " + hval,)
@@ -103,7 +103,7 @@ class myMilter(Milter.Base):
 
 			# Add Disclaimer message
 			self.fp.seek(0)
-			msg = email.message_from_binary_file(self.fp) 		# msg holds the entire message body
+			msg = email.message_from_binary_file(self.fp)
 			msg = embed_disclaimer(self, msg, disclaimer_msg_txt, disclaimer_msg_html)
 
 			self.replacebody(msg)
