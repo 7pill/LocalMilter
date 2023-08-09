@@ -26,7 +26,8 @@ logq = None
 file_path = os.path.abspath(__file__)
 base_dir = os.path.dirname(file_path)
 with open(base_dir + '/exception_domains.txt', 'r') as f:
-	disclaimer_exception = f.read().split()
+	disclaimer_exception = f.read().split('\n')
+	disclaimer_exception = [line for line in disclaimer_exception if line != '']
 with open(base_dir + '/data/disclaimer_message.txt', 'r') as f:
 	disclaimer_msg_txt = f.read() + '\n\n'
 with open(base_dir + '/data/disclaimer_message.html', 'r') as f:
@@ -61,13 +62,16 @@ class myMilter(Milter.Base):
 		print('%s: %s\n' % (name, hval))
 		if name == 'From':
 			fromHeader = hval
-			self.logMessage += ("From Header: " + fromHeader,)
+			self.logMessage += ("From: " + fromHeader,)
 
 			# Verify if email send from External
 			self.fromExternal = not any([fromHeader.endswith(pattern+">") for pattern in disclaimer_exception])
 
 		elif name == "Subject":
 			self.logMessage += ("Subject: " + hval,)
+
+		elif name == "To":
+			self.logMessage += ("To: " + hval,)
 
 		elif name == "Content-Type" or name == "Content-Transfer-Encoding":
 			self.fp.write(b'%s: %s\n' % (name.encode(),hval.encode()))	# add header to buffer
