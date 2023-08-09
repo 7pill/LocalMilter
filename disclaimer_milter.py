@@ -67,10 +67,6 @@ class myMilter(Milter.Base):
 			# Verify if email send from External (ACCEPT Mail if from Internal)
 			self.fromExternal = not any([fromHeader.endswith(pattern+">") for pattern in disclaimer_exception])
 
-		self.log(*self.logMessage,)
-
-		return Milter.ACCEPT 
-
 		elif name == "Subject":
 			self.logMessage += ("Subject: " + hval,)
 
