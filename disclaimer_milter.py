@@ -64,8 +64,12 @@ class myMilter(Milter.Base):
 			fromHeader = hval
 			self.logMessage += ("From: " + fromHeader,)
 
-			# Verify if email send from External
+			# Verify if email send from External (ACCEPT Mail if from Internal)
 			self.fromExternal = not any([fromHeader.endswith(pattern+">") for pattern in disclaimer_exception])
+
+		self.log(*self.logMessage,)
+
+		return Milter.ACCEPT 
 
 		elif name == "Subject":
 			self.logMessage += ("Subject: " + hval,)
@@ -82,7 +86,12 @@ class myMilter(Milter.Base):
 	@Milter.noreply
 	def eoh(self):
 		self.fp.write(b'\n')				# terminate headers
-		return Milter.CONTINUE
+		if not self.fromExternal:
+			self.logMessage += ("ACCEPT: Internal email",)
+			self.log(*self.logMessage,)
+			return Milter.ACCEPT
+		else:
+			return Milter.CONTINUE
 
 	
 	def body(self, chunk):					# Get copy of body message data on buffer
@@ -102,9 +111,6 @@ class myMilter(Milter.Base):
 			msg = embed_disclaimer(self, msg, disclaimer_msg_txt, disclaimer_msg_html)
 
 			self.replacebody(msg)
-
-		else:
-			self.logMessage += ("ACCEPT: Internal email",)
 
 		self.log(*self.logMessage,)
 
