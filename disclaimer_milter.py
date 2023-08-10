@@ -79,7 +79,6 @@ class myMilter(Milter.Base):
 		return Milter.CONTINUE
 
 	
-	@Milter.noreply
 	def eoh(self):
 		self.fp.write(b'\n')				# terminate headers
 		if not self.fromExternal:
@@ -89,7 +88,8 @@ class myMilter(Milter.Base):
 		else:
 			return Milter.CONTINUE
 
-	
+
+	@Milter.noreply
 	def body(self, chunk):					# Get copy of body message data on buffer
 		self.fp.write(chunk)
 		return Milter.CONTINUE
