@@ -188,7 +188,7 @@ def embed_disclaimer(milter_object, email_object, disclaimer_msg_txt, disclaimer
 			# Check Encode method on email
 			if disclaimer_msg:
 				if transfer_encode == "base64":
-					milter_object.logMessage += ("[-] Unhandled mime type found: " + content_type,)
+					milter_object.logMessage += ("Message Encoded with: " + transfer_encode,)
 					disclaimer_payload = embed_disclaimer_b64(part, disclaimer_msg)
 				else:
 					disclaimer_payload = disclaimer_msg + part.get_payload()
