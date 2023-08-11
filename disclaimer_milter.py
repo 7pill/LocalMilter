@@ -8,6 +8,7 @@
 import Milter
 from Milter.utils import parse_addr
 from io import BytesIO
+import quopri
 import time
 import base64
 import email
@@ -167,6 +168,15 @@ def embed_disclaimer_b64(email_object, disclaimer_msg, chunk=76):
 	new_email_content = '\n'.join([new_email_content[i:i+chunk] for i in range(0,len(new_email_content),chunk)])
 	return new_email_content
 
+def embed_disclaimer_quopri(email_object, disclaimer_msg):
+	# Re-format disclaimer in quote-printable format
+	disclaimer_msg = quopri.encodestring(disclaimer_msg.encode('utf-8')).decode('utf-8')
+
+	# Merge Disclaimer with main message
+	new_email_content = disclaimer_msg + email_object.get_payload()
+
+	return new_email_content
+
 
 def embed_disclaimer(milter_object, email_object, disclaimer_msg_txt, disclaimer_msg_html):
 	for part in email_object.walk():
@@ -188,8 +198,11 @@ def embed_disclaimer(milter_object, email_object, disclaimer_msg_txt, disclaimer
 			# Check Encode method on email
 			if disclaimer_msg:
 				if transfer_encode == "base64":
-					milter_object.logMessage += ("Message Encoded with: " + transfer_encode,)
+					milter_object.logMessage += ("Message Encoded with: base64",)
 					disclaimer_payload = embed_disclaimer_b64(part, disclaimer_msg)
+				elif transfer_encode == "quoted-printable": 
+					milter_object.logMessage += ("Message Encoded with: quoted-printable",)
+					disclaimer_payload = embed_disclaimer_quopri(part, disclaimer_msg)
 				else:
 					disclaimer_payload = disclaimer_msg + part.get_payload()
 				part.set_payload(disclaimer_payload)
